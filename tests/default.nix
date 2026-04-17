@@ -1,6 +1,6 @@
 { lib, nixlite }:
 let
-  inherit (nixlite) merge mergeList;
+  inherit (nixlite) merge mergeAll;
   nixliteImport = nixlite.import;
 
   try = e: builtins.tryEval e;
@@ -64,18 +64,18 @@ let
       let r = builtins.tryEval (merge { a.b.c = 1; } { a.b.c = 2; }); in
       { expr = r.success; expected = false; };
 
-    # mergeList
-    mergeList_empty = { expr = mergeList [ ]; expected = { }; };
-    mergeList_singleton = {
-      expr = mergeList [ { a = 1; } ];
+    # mergeAll
+    mergeAll_empty = { expr = mergeAll [ ]; expected = { }; };
+    mergeAll_singleton = {
+      expr = mergeAll [ { a = 1; } ];
       expected = { a = 1; };
     };
-    mergeList_triple = {
-      expr = mergeList [ { a = 1; } { b = 2; } { c = 3; } ];
+    mergeAll_triple = {
+      expr = mergeAll [ { a = 1; } { b = 2; } { c = 3; } ];
       expected = { a = 1; b = 2; c = 3; };
     };
-    mergeList_nestedAndLists = {
-      expr = mergeList [
+    mergeAll_nestedAndLists = {
+      expr = mergeAll [
         { x.a = 1; }
         { x.b = 2; }
         { y = [ 1 ]; }
@@ -83,8 +83,8 @@ let
       ];
       expected = { x = { a = 1; b = 2; }; y = [ 1 2 ]; };
     };
-    mergeList_equivalentToFold = {
-      expr = mergeList [ { a = 1; } { b = 2; } { c = 3; } ]
+    mergeAll_equivalentToFold = {
+      expr = mergeAll [ { a = 1; } { b = 2; } { c = 3; } ]
         == merge (merge { a = 1; } { b = 2; }) { c = 3; };
       expected = true;
     };

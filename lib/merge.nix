@@ -36,6 +36,6 @@ let
 
   merge = a: b: mergeAt "" a b;
 
-  mergeList = xs: foldl' merge { } xs;
+  mergeAll = xs: foldl' merge { } xs;
 in
-{ inherit merge mergeList; }
+{ inherit merge mergeAll; }

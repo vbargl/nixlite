@@ -3,6 +3,6 @@ let
   mergeLib = import ./merge.nix { inherit lib; };
 in
 {
-  inherit (mergeLib) merge mergeList;
+  inherit (mergeLib) merge mergeAll;
   import = import ./import.nix { inherit lib; };
 }

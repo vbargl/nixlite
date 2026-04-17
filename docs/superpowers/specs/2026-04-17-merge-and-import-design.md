@@ -1,4 +1,4 @@
-# nixlite — `merge`, `mergeList`, unified `import`
+# nixlite — `merge`, `mergeAll`, unified `import`
 
 Date: 2026-04-17
 Status: Approved
@@ -16,21 +16,21 @@ The full `nix-lite.modules.eval` (priorities, fixpoint, module-definition polymo
 
 Add to `/home/vbargl/personal/nixlite/`:
 
-- `lib/merge.nix` — `merge`, `mergeList`
+- `lib/merge.nix` — `merge`, `mergeAll`
 - `lib/import.nix` — unified `import` (replaces `lib/import-tree.nix`)
-- Update `lib/default.nix` to expose `merge`, `mergeList`, `import`
+- Update `lib/default.nix` to expose `merge`, `mergeAll`, `import`
 
 Remove: `lib/import-tree.nix` and the `importTree` export (replaced by `import`).
 
 Out of scope: priorities (`default`/`force`), fixpoints (`self` in module functions), `systems.for`/`each`, module-definition resolver with `imports` field.
 
-## `merge` / `mergeList`
+## `merge` / `mergeAll`
 
 ### Signatures
 
 ```
 merge     : a -> b -> merged
-mergeList : [x] -> merged       # equivalent to builtins.foldl' merge {} xs
+mergeAll : [x] -> merged       # equivalent to builtins.foldl' merge {} xs
 ```
 
 ### Rules
@@ -61,7 +61,7 @@ Path tracking is threaded through the recursion; the top-level call starts with 
 
 - `merge` is associative for the attrset and list cases; order within lists is preserved (left then right).
 - `merge a a` should equal `a` for any input that doesn't contain a function.
-- `mergeList []` → `{}` (identity for attrset merge). `mergeList [x]` → `x`.
+- `mergeAll []` → `{}` (identity for attrset merge). `mergeAll [x]` → `x`.
 
 ## `import`
 
@@ -119,8 +119,8 @@ in {
 nixlite/
 ├── flake.nix
 └── lib/
-    ├── default.nix   # { merge, mergeList, import }
-    ├── merge.nix     # merge, mergeList
+    ├── default.nix   # { merge, mergeAll, import }
+    ├── merge.nix     # merge, mergeAll
     └── import.nix    # unified import (replaces import-tree.nix)
 ```
 
@@ -132,7 +132,7 @@ Manual evaluation tests during implementation (no formal test harness, keeping t
 
 1. `merge` basics: two disjoint attrsets, overlapping with attrset values (recurse), list-list concat, primitive-primitive equal, primitive-primitive unequal (throw), null absorption, type mismatch (throw).
 2. `merge` error messages include path and values.
-3. `mergeList []`, `mergeList [x]`, `mergeList [a b c]` equivalence with manual folds.
+3. `mergeAll []`, `mergeAll [x]`, `mergeAll [a b c]` equivalence with manual folds.
 4. `import ./dir` — re-run the 5-rule test cases from the `importTree` spec.
 5. `import { path = ./dir; resolve = ARGS; }` — verify functions get applied, non-functions passthrough, single-application rule.
 6. `import { path = ./dir; }` (resolve omitted) — functions not applied.
@@ -147,4 +147,4 @@ Manual evaluation tests during implementation (no formal test harness, keeping t
 - Name `import` despite being a Nix keyword — works fine as attr access (`nixlite.import ./x`), matches the user's own mental model from the brainstorming session.
 - Single application for `resolve` — predictable, matches NixOS module pattern where modules-as-functions are applied once with module args.
 - `null` absorbed (rather than treated as primitive that throws on mismatch) — user's explicit call during brainstorming.
-- `mergeList` rather than `mergeAll` — user's naming preference.
+- `mergeAll` rather than `mergeAll` — user's naming preference.

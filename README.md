@@ -5,7 +5,7 @@ Small personal Nix flake library. Three helpers exposed under `nixlite.lib`:
 | Name        | Type                                    | Purpose                                                  |
 |-------------|-----------------------------------------|----------------------------------------------------------|
 | `merge`     | `a -> b -> merged`                      | Deep-merge two values (attrsets recurse, lists concat).  |
-| `mergeList` | `[x] -> merged`                         | Fold `merge` over a list.                                |
+| `mergeAll` | `[x] -> merged`                         | Fold `merge` over a list.                                |
 | `import`    | `(Path | { path; resolve? }) -> AttrSet` | Walk a directory into a keyed attrset, optionally applying a resolver to leaf functions. |
 
 ## Install
@@ -15,12 +15,12 @@ Small personal Nix flake library. Three helpers exposed under `nixlite.lib`:
   inputs.nixlite.url = "github:vbargl/nixlite";
 
   outputs = { self, nixpkgs, nixlite, ... }: {
-    # use nixlite.lib.merge / mergeList / import here
+    # use nixlite.lib.merge / mergeAll / import here
   };
 }
 ```
 
-## `merge` / `mergeList`
+## `merge` / `mergeAll`
 
 Deep-merge respecting types.
 
@@ -30,7 +30,7 @@ nixlite.lib.merge
   { services.web = { tls = true;  hosts = [ "b" ]; }; }
 # => { services.web = { port = 8080; tls = true; hosts = [ "a" "b" ]; }; }
 
-nixlite.lib.mergeList [
+nixlite.lib.mergeAll [
   { a = 1; }
   { b = 2; }
   { c = 3; }
@@ -113,7 +113,7 @@ nixlite/
 ├── flake.nix
 ├── lib/
 │   ├── default.nix
-│   ├── merge.nix        # merge, mergeList
+│   ├── merge.nix        # merge, mergeAll
 │   └── import.nix       # unified import
 └── tests/
     ├── default.nix
