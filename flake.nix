@@ -3,7 +3,34 @@
 
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
 
-  outputs = { self, nixpkgs }: {
-    lib = import ./lib { lib = nixpkgs.lib; };
-  };
+  outputs = { self, nixpkgs }:
+    let
+      inherit (nixpkgs) lib;
+      forSystems = f: lib.genAttrs [ "x86_64-linux" ] (system: f nixpkgs.legacyPackages.${system});
+    in
+    {
+      lib = import ./lib { inherit lib; };
+
+      checks = forSystems (pkgs:
+        let
+          result = import ./tests { inherit lib; nixtra = self.lib; };
+        in
+        {
+          tests = pkgs.runCommand "nixtra-tests"
+            {
+              failures = builtins.toJSON result.failures;
+              pass = result.pass;
+            }
+            ''
+              if [ "$pass" = "1" ]; then
+                echo "all tests pass"
+                touch "$out"
+              else
+                echo "FAILURES:" >&2
+                echo "$failures" >&2
+                exit 1
+              fi
+            '';
+        });
+    };
 }

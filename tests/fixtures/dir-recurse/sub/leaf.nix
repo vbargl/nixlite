@@ -1,0 +1,1 @@
+args: { nestedFn = args; }
