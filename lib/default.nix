@@ -1,4 +1,8 @@
 { lib }:
+let
+  mergeLib = import ./merge.nix { inherit lib; };
+in
 {
-  importTree = import ./import-tree.nix { inherit lib; };
+  inherit (mergeLib) merge mergeList;
+  import = import ./import.nix { inherit lib; };
 }
