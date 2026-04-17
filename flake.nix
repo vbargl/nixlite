@@ -6,14 +6,13 @@
   outputs = { self, nixpkgs }:
     let
       inherit (nixpkgs) lib;
+      nixlite = import ./lib { inherit lib; };
       forSystems = f: lib.genAttrs [ "x86_64-linux" ] (system: f nixpkgs.legacyPackages.${system});
     in
-    {
-      lib = import ./lib { inherit lib; };
-
+    nixlite // {
       checks = forSystems (pkgs:
         let
-          result = import ./tests { inherit lib; nixlite = self.lib; };
+          result = import ./tests { inherit lib nixlite; };
         in
         {
           tests = pkgs.runCommand "nixlite-tests"

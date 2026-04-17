@@ -1,6 +1,6 @@
 # nixlite
 
-Small personal Nix flake library. Three helpers exposed under `nixlite.lib`:
+Small personal Nix flake library. Three helpers exposed at the top level of the flake (`nixlite.merge`, `nixlite.mergeAll`, `nixlite.import`):
 
 | Name        | Type                                    | Purpose                                                  |
 |-------------|-----------------------------------------|----------------------------------------------------------|
@@ -15,7 +15,7 @@ Small personal Nix flake library. Three helpers exposed under `nixlite.lib`:
   inputs.nixlite.url = "github:vbargl/nixlite";
 
   outputs = { self, nixpkgs, nixlite, ... }: {
-    # use nixlite.lib.merge / mergeAll / import here
+    # use nixlite.merge / mergeAll / import here
   };
 }
 ```
@@ -25,12 +25,12 @@ Small personal Nix flake library. Three helpers exposed under `nixlite.lib`:
 Deep-merge respecting types.
 
 ```nix
-nixlite.lib.merge
+nixlite.merge
   { services.web = { port = 8080; hosts = [ "a" ]; }; }
   { services.web = { tls = true;  hosts = [ "b" ]; }; }
 # => { services.web = { port = 8080; tls = true; hosts = [ "a" "b" ]; }; }
 
-nixlite.lib.mergeAll [
+nixlite.mergeAll [
   { a = 1; }
   { b = 2; }
   { c = 3; }
@@ -74,10 +74,10 @@ Called two ways:
 
 ```nix
 # 1. Path form — walk only, leaves kept as-is (functions stay functions).
-nixlite.lib.import ./modules
+nixlite.import ./modules
 
 # 2. Attrset form — walk + apply `resolve` to any leaf that is a function.
-nixlite.lib.import { path = ./modules; resolve = { inherit flake; }; }
+nixlite.import { path = ./modules; resolve = { inherit flake; }; }
 ```
 
 Resolve is applied **once** per leaf. Non-function leaves pass through untouched.
@@ -87,7 +87,7 @@ Typical use inside a NixOS module:
 ```nix
 { config, lib, flake, ... }:
 let
-  partials = nixlite.lib.import { path = ./dir; resolve = { inherit flake; }; };
+  partials = nixlite.import { path = ./dir; resolve = { inherit flake; }; };
 in {
   imports = [
     partials.module1
