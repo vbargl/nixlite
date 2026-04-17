@@ -34,7 +34,7 @@ let
 
   validKeys = [ "path" "resolve" ];
 
-  nixtraImport = arg:
+  nixliteImport = arg:
     if isPath arg then
       walk { hasResolve = false; value = null; } arg
     else if isAttrs arg then
@@ -42,9 +42,9 @@ let
         unknown = builtins.filter (k: !(builtins.elem k validKeys)) (builtins.attrNames arg);
       in
       if unknown != [ ] then
-        throw "nixtra.import: unknown key '${builtins.head unknown}' in argument attrset"
+        throw "nixlite.import: unknown key '${builtins.head unknown}' in argument attrset"
       else if !(arg ? path) then
-        throw "nixtra.import: missing required key 'path' in argument attrset"
+        throw "nixlite.import: missing required key 'path' in argument attrset"
       else
         walk
           {
@@ -53,6 +53,6 @@ let
           }
           arg.path
     else
-      throw "nixtra.import: expected path or attrset, got ${builtins.typeOf arg}";
+      throw "nixlite.import: expected path or attrset, got ${builtins.typeOf arg}";
 in
-nixtraImport
+nixliteImport

@@ -1,15 +1,15 @@
-# nixtra — initial scaffold + `importTree`
+# nixlite — initial scaffold + `importTree`
 
 Date: 2026-04-17
 Status: Approved
 
 ## Purpose
 
-Create `nixtra`, a personal Nix flake library exposing reusable helpers for use across other flake repos. First helper: `importTree`, which auto-generates a keyed attrset from a directory of Nix files, replacing the ad-hoc `discoverModules` used in `nixfiles/lib/default.nix`.
+Create `nixlite`, a personal Nix flake library exposing reusable helpers for use across other flake repos. First helper: `importTree`, which auto-generates a keyed attrset from a directory of Nix files, replacing the ad-hoc `discoverModules` used in `nixfiles/lib/default.nix`.
 
 ## Scope
 
-1. Scaffold `/home/vbargl/personal/nixtra/` as a plain Nix flake library.
+1. Scaffold `/home/vbargl/personal/nixlite/` as a plain Nix flake library.
 2. Initialize VCS: jj colocated with git.
 3. Implement `importTree` and expose it via `flake.lib`.
 
@@ -18,7 +18,7 @@ Out of scope (explicit): flake-parts, packages, modules, overlays, additional he
 ## Repository layout
 
 ```
-nixtra/
+nixlite/
 ├── .jj/ + .git/            # jj colocated with git
 ├── .gitignore              # result, result-*, .direnv
 ├── flake.nix               # plain flake, nixpkgs input only
@@ -44,9 +44,9 @@ Plain flake. Single input (`nixpkgs`, `nixos-25.11`). Single output: `lib = impo
 Consumer usage:
 
 ```nix
-inputs.nixtra.url = "github:vbargl/nixtra";
+inputs.nixlite.url = "github:vbargl/nixlite";
 # ...
-let tree = inputs.nixtra.lib.importTree ./machines/modules; in ...
+let tree = inputs.nixlite.lib.importTree ./machines/modules; in ...
 ```
 
 ## `importTree`
@@ -99,7 +99,7 @@ importTree = dir:
 
 ## Migration path (not part of this task)
 
-`nixfiles/lib/default.nix` can later replace `discoverModules` with `nixtra.lib.importTree`. Depth-1 callers (`flake.modules.homeManager`, `flake.modules.nixos`) keep their shape; nested subdirs gain nested attrsets where they drop their `default.nix`.
+`nixfiles/lib/default.nix` can later replace `discoverModules` with `nixlite.lib.importTree`. Depth-1 callers (`flake.modules.homeManager`, `flake.modules.nixos`) keep their shape; nested subdirs gain nested attrsets where they drop their `default.nix`.
 
 ## Decision log
 

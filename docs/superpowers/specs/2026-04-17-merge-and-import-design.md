@@ -1,11 +1,11 @@
-# nixtra — `merge`, `mergeList`, unified `import`
+# nixlite — `merge`, `mergeList`, unified `import`
 
 Date: 2026-04-17
 Status: Approved
 
 ## Purpose
 
-Extract two capabilities from `github:vbargl/nix-lite` into `nixtra`, simplified for personal use as NixOS module building blocks:
+Extract two capabilities from `github:vbargl/nix-lite` into `nixlite`, simplified for personal use as NixOS module building blocks:
 
 1. **Deep merge** of attrsets and lists, strict about primitive conflicts.
 2. **Unified `import`** — replaces the existing `importTree` — walks a directory into a keyed attrset, with optional function resolution at leaves.
@@ -14,7 +14,7 @@ The full `nix-lite.modules.eval` (priorities, fixpoint, module-definition polymo
 
 ## Scope
 
-Add to `/home/vbargl/personal/nixtra/`:
+Add to `/home/vbargl/personal/nixlite/`:
 
 - `lib/merge.nix` — `merge`, `mergeList`
 - `lib/import.nix` — unified `import` (replaces `lib/import-tree.nix`)
@@ -51,8 +51,8 @@ mergeList : [x] -> merged       # equivalent to builtins.foldl' merge {} xs
 Include the attribute path into the structure and the conflicting values/types:
 
 ```
-nixtra.merge: conflict at .services.web.port (8080 vs 9090)
-nixtra.merge: incompatible types at .hosts (list vs set)
+nixlite.merge: conflict at .services.web.port (8080 vs 9090)
+nixlite.merge: incompatible types at .hosts (list vs set)
 ```
 
 Path tracking is threaded through the recursion; the top-level call starts with path `""` (which renders as `<root>` in messages).
@@ -77,7 +77,7 @@ import : (Path | { path : Path, resolve : Any }) -> AttrSet
 - `builtins.isAttrs arg` → attrset form:
   - `path` field required; missing → throw.
   - `resolve` field optional; absent → no resolution; present → pass its value to any leaf that is a function.
-  - Any other keys → throw (`nixtra.import: unknown key '<k>' in argument attrset`).
+  - Any other keys → throw (`nixlite.import: unknown key '<k>' in argument attrset`).
 - Anything else → throw.
 
 ### Tree walk rules (unchanged from `importTree`)
@@ -104,7 +104,7 @@ For nested directories walked via rule 3, the same resolution rule applies at ea
 ```nix
 { config, lib, flake, ... }:
 let
-  partials = nixtra.import { path = ./dir; resolve = { inherit flake; }; };
+  partials = nixlite.import { path = ./dir; resolve = { inherit flake; }; };
 in {
   imports = [
     partials.module1
@@ -116,7 +116,7 @@ in {
 ## File layout after this change
 
 ```
-nixtra/
+nixlite/
 ├── flake.nix
 └── lib/
     ├── default.nix   # { merge, mergeList, import }
@@ -144,7 +144,7 @@ Manual evaluation tests during implementation (no formal test harness, keeping t
 - Drop priorities from merge — user asked for strict "throw on primitive conflict".
 - Drop `importModule` (nix-lite-style module resolver) — NixOS's own `imports` handles composition; unified `import` + user's NixOS modules suffice.
 - `import` replaces `importTree`. The path form is strictly a degenerate case of the new signature; no reason to keep two names.
-- Name `import` despite being a Nix keyword — works fine as attr access (`nixtra.import ./x`), matches the user's own mental model from the brainstorming session.
+- Name `import` despite being a Nix keyword — works fine as attr access (`nixlite.import ./x`), matches the user's own mental model from the brainstorming session.
 - Single application for `resolve` — predictable, matches NixOS module pattern where modules-as-functions are applied once with module args.
 - `null` absorbed (rather than treated as primitive that throws on mismatch) — user's explicit call during brainstorming.
 - `mergeList` rather than `mergeAll` — user's naming preference.

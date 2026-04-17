@@ -13,10 +13,10 @@
 
       checks = forSystems (pkgs:
         let
-          result = import ./tests { inherit lib; nixtra = self.lib; };
+          result = import ./tests { inherit lib; nixlite = self.lib; };
         in
         {
-          tests = pkgs.runCommand "nixtra-tests"
+          tests = pkgs.runCommand "nixlite-tests"
             {
               failures = builtins.toJSON result.failures;
               pass = result.pass;

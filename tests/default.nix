@@ -1,16 +1,16 @@
-{ lib, nixtra }:
+{ lib, nixlite }:
 let
-  inherit (nixtra) merge mergeList;
-  nixtraImport = nixtra.import;
+  inherit (nixlite) merge mergeList;
+  nixliteImport = nixlite.import;
 
   try = e: builtins.tryEval e;
   throws = e: !(try e).success;
 
   fix = ./fixtures;
 
-  noResolve = nixtraImport fix;
+  noResolve = nixliteImport fix;
   args = { tag = "R"; };
-  withResolve = nixtraImport { path = fix; resolve = args; };
+  withResolve = nixliteImport { path = fix; resolve = args; };
 
   tests = {
     # merge — attrset cases
@@ -156,29 +156,29 @@ let
 
     # import — attrset form without resolve — same as path form
     importAttrs_noResolveEqualsPathForm = {
-      expr = (nixtraImport { path = fix; }).plain;
+      expr = (nixliteImport { path = fix; }).plain;
       expected = noResolve.plain;
     };
     importAttrs_noResolveFnStaysFunction = {
-      expr = builtins.isFunction (nixtraImport { path = fix; }).fn;
+      expr = builtins.isFunction (nixliteImport { path = fix; }).fn;
       expected = true;
     };
 
     # import — error cases
     import_throwsUnknownKey = {
-      expr = throws (nixtraImport { path = fix; bogus = 1; });
+      expr = throws (nixliteImport { path = fix; bogus = 1; });
       expected = true;
     };
     import_throwsMissingPath = {
-      expr = throws (nixtraImport { resolve = { }; });
+      expr = throws (nixliteImport { resolve = { }; });
       expected = true;
     };
     import_throwsBadArg = {
-      expr = throws (nixtraImport "string");
+      expr = throws (nixliteImport "string");
       expected = true;
     };
     import_throwsNullArg = {
-      expr = throws (nixtraImport null);
+      expr = throws (nixliteImport null);
       expected = true;
     };
   };

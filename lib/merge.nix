@@ -15,7 +15,7 @@ let
     if ta == "null" then b
     else if tb == "null" then a
     else if isFunction a || isFunction b then
-      throw "nixtra.merge: cannot merge function at ${pathStr path} (${ta} vs ${tb})"
+      throw "nixlite.merge: cannot merge function at ${pathStr path} (${ta} vs ${tb})"
     else if isAttrs a && isAttrs b then
       let
         keys = attrNames (a // b);
@@ -30,9 +30,9 @@ let
       a ++ b
     else if isPrimitive ta && isPrimitive tb then
       if ta == tb && a == b then a
-      else throw "nixtra.merge: conflict at ${pathStr path} (${toString a} vs ${toString b})"
+      else throw "nixlite.merge: conflict at ${pathStr path} (${toString a} vs ${toString b})"
     else
-      throw "nixtra.merge: incompatible types at ${pathStr path} (${ta} vs ${tb})";
+      throw "nixlite.merge: incompatible types at ${pathStr path} (${ta} vs ${tb})";
 
   merge = a: b: mergeAt "" a b;
 
