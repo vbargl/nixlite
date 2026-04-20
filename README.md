@@ -1,12 +1,13 @@
 # nixlite
 
-Small personal Nix flake library. Three helpers exposed at the top level of the flake (`nixlite.merge`, `nixlite.mergeAll`, `nixlite.import`):
+Small personal Nix flake library. Four helpers exposed at the top level of the flake (`nixlite.merge`, `nixlite.mergeAll`, `nixlite.import`, `nixlite.eval`):
 
 | Name        | Type                                    | Purpose                                                  |
 |-------------|-----------------------------------------|----------------------------------------------------------|
 | `merge`     | `a -> b -> merged`                      | Deep-merge two values (attrsets recurse, lists concat).  |
 | `mergeAll` | `[x] -> merged`                         | Fold `merge` over a list.                                |
 | `import`    | `(Path | { path; resolve? }) -> AttrSet` | Walk a directory into a keyed attrset, optionally applying a resolver to leaf functions. |
+| `eval`      | `{ inputs?; module } -> AttrSet`        | Lightweight NixOS-module-style evaluator — expands an `imports` tree, applies modules with `self` fixpoint, merges with `merge`. |
 
 ## Install
 
@@ -98,13 +99,48 @@ in {
 
 Unknown keys in the attrset form, missing `path`, or a non-path/non-attrset argument all throw.
 
+## `eval`
+
+Expand a module tree and merge it via `nixlite.merge`. Minimal analogue of NixOS module evaluation — no options system, no priorities. Primitive conflicts throw.
+
+```nix
+nixlite.eval {
+  inputs = { flake = self; };
+  module = {
+    imports = [
+      ./module-a.nix            # path — imported and treated as a module
+      { services.web.port = 8080; }
+      ({ self, flake, ... }: {  # function — gets { self, ...inputs }
+        services.web.hosts = [ flake.outPath ];
+      })
+    ];
+  };
+}
+```
+
+A module is one of:
+
+| Context | Allowed shapes |
+|---|---|
+| Top-level `module` | attrset, list, function |
+| Inside a list (including `imports`) | path, attrset, function, list |
+
+- **attrset** — `imports` (if present) must be a list of modules; it is stripped from the final result. Every other key becomes part of the payload.
+- **list** — every element is itself a module (shapes per "inside a list" above).
+- **function** — called with `{ self, ...inputs }` where `self` is the fully-merged final result (fixpoint). Return value is treated as another module.
+- **path** — imported via `builtins.import`. The imported value is treated as a module (shapes per function-return rules — paths inside paths are not allowed). Paths are deduplicated within a single `eval` call.
+
+Merging uses `nixlite.merge` as-is: no priorities, strict on primitive conflicts. Every module must contribute disjoint primitives at any shared attribute path.
+
+`inputs` may not contain a key named `self` (reserved). Unknown keys in the argument attrset throw. Bare paths at the top level throw.
+
 ## Tests
 
 ```
 nix flake check
 ```
 
-45 tests via `lib.runTests`, wired into `checks.x86_64-linux.tests`. Failures are printed as JSON to stderr.
+72 tests via `lib.runTests`, wired into `checks.x86_64-linux.tests`. Failures are printed as JSON to stderr.
 
 ## Layout
 
@@ -114,8 +150,11 @@ nixlite/
 ├── lib/
 │   ├── default.nix
 │   ├── merge.nix        # merge, mergeAll
-│   └── import.nix       # unified import
+│   ├── import.nix       # unified import
+│   └── eval.nix         # module-tree evaluator
 └── tests/
     ├── default.nix
-    └── fixtures/        # deterministic tree used by import tests
+    ├── eval.nix
+    ├── fixtures/        # deterministic tree used by import tests
+    └── eval-fixtures/   # module fixtures used by eval tests
 ```

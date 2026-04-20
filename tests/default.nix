@@ -3,8 +3,10 @@ let
   inherit (nixlite) merge mergeAll;
   nixliteImport = nixlite.import;
 
-  try = e: builtins.tryEval e;
-  throws = e: !(try e).success;
+  # Deep-force the value so tryEval catches throws buried in lazy attrs/list
+  # elements (e.g. `merge { a.b.c = 1; } { a.b.c = 2; }` only throws when
+  # `.a.b.c` is demanded).
+  throws = e: !(builtins.tryEval (builtins.deepSeq e null)).success;
 
   fix = ./fixtures;
 
@@ -12,7 +14,9 @@ let
   args = { tag = "R"; };
   withResolve = nixliteImport { path = fix; resolve = args; };
 
-  tests = {
+  evalTests = import ./eval.nix { inherit lib nixlite; };
+
+  tests = evalTests // {
     # merge — attrset cases
     merge_disjoint = {
       expr = merge { a = 1; } { b = 2; };
@@ -59,9 +63,10 @@ let
     merge_throwsFnRight = { expr = throws (merge { } (x: x)); expected = true; };
     merge_throwsPrimVsAttrs = { expr = throws (merge 1 { }); expected = true; };
 
-    # merge — error messages contain path + values
+    # merge — error messages contain path + values (the throw only fires when
+    # the conflicting leaf is demanded, so force-evaluate the whole result).
     merge_errorMessagePath =
-      let r = builtins.tryEval (merge { a.b.c = 1; } { a.b.c = 2; }); in
+      let r = builtins.tryEval (builtins.deepSeq (merge { a.b.c = 1; } { a.b.c = 2; }) null); in
       { expr = r.success; expected = false; };
 
     # mergeAll
@@ -183,7 +188,10 @@ let
     };
   };
 
-  failures = lib.runTests tests;
+  # lib.runTests only runs keys prefixed with "test"; add the prefix here so
+  # we can keep readable names above.
+  prefixed = lib.mapAttrs' (name: value: lib.nameValuePair "test_${name}" value) tests;
+  failures = lib.runTests prefixed;
 in
 {
   inherit tests failures;
