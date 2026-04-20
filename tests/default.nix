@@ -9,6 +9,7 @@ let
   throws = e: !(builtins.tryEval (builtins.deepSeq e null)).success;
 
   fix = ./fixtures;
+  flat = ./fixtures-flat;
 
   noResolve = nixliteImport fix;
   args = { tag = "R"; };
@@ -95,13 +96,14 @@ let
     };
 
     # import — path form, structure
+    # (default.nix is now treated as a normal file: no collapse, no root exclusion)
     import_pathFormKeys = {
       expr = builtins.attrNames noResolve;
-      expected = [ "dir-recurse" "dir-with-def" "fn" "plain" "root-default-sibling" ];
+      expected = [ "default" "dir-recurse" "dir-with-def" "fn" "plain" "root-default-sibling" ];
     };
-    import_rootDefaultExcluded = {
-      expr = noResolve ? rootDefault;
-      expected = false;
+    import_rootDefaultPresent = {
+      expr = noResolve.default;
+      expected = { rootDefault = "must not appear as a key"; };
     };
     import_plainPassthrough = {
       expr = noResolve.plain;
@@ -111,14 +113,19 @@ let
       expr = builtins.isFunction noResolve.fn;
       expected = true;
     };
-    import_dirWithDefStaysFunction = {
-      expr = builtins.isFunction noResolve."dir-with-def";
+    import_dirWithDefNowRecurses = {
+      # dir-with-def no longer collapses; it's walked like any other directory
+      # and its default.nix appears as a `default` key.
+      expr = builtins.attrNames noResolve."dir-with-def";
+      expected = [ "default" "ignored" ];
+    };
+    import_dirWithDefDefaultStaysFunction = {
+      expr = builtins.isFunction noResolve."dir-with-def".default;
       expected = true;
     };
-    import_dirWithDefIgnoresSiblings = {
-      # dir-with-def/ignored.nix must NOT appear as a subkey
-      expr = (noResolve."dir-with-def" args) ? ignored;
-      expected = false;
+    import_dirWithDefSiblingPresent = {
+      expr = noResolve."dir-with-def".ignored;
+      expected = { must = "be ignored when sibling default.nix exists"; };
     };
     import_dirRecurseHasSub = {
       expr = builtins.attrNames noResolve."dir-recurse";
@@ -132,9 +139,10 @@ let
       expr = noResolve."dir-recurse".other;
       expected = { notAFn = 1; };
     };
-    import_rootDefaultSiblingCollapsed = {
+    import_rootDefaultSiblingNotCollapsed = {
+      # root-default-sibling/default.nix no longer collapses the parent dir.
       expr = noResolve.root-default-sibling;
-      expected = { collapsed = true; };
+      expected = { default = { collapsed = true; }; };
     };
 
     # import — attrset form with resolve
@@ -143,7 +151,7 @@ let
       expected = { gotArgs = { tag = "R"; }; };
     };
     importR_dirWithDefApplied = {
-      expr = withResolve."dir-with-def";
+      expr = withResolve."dir-with-def".default;
       expected = { dirFn = { tag = "R"; }; };
     };
     importR_nestedFnApplied = {
@@ -169,6 +177,54 @@ let
       expected = true;
     };
 
+    # import — flatten
+    import_flattenSinglePath = {
+      expr = nixliteImport { path = flat; flatten = true; };
+      expected = [ { a = 1; } { b = 2; } { c = 3; } ];
+    };
+    import_flattenListOfFiles = {
+      expr = nixliteImport {
+        path = [ (flat + "/a.nix") (flat + "/b.nix") ];
+        flatten = true;
+      };
+      expected = [ { a = 1; } { b = 2; } ];
+    };
+    import_flattenListOfDirs = {
+      expr = nixliteImport {
+        path = [ (flat + "/sub") flat ];
+        flatten = true;
+      };
+      expected = [ { c = 3; } { a = 1; } { b = 2; } { c = 3; } ];
+    };
+    import_flattenListMixed = {
+      expr = nixliteImport {
+        path = [ (flat + "/a.nix") (flat + "/sub") ];
+        flatten = true;
+      };
+      expected = [ { a = 1; } { c = 3; } ];
+    };
+    import_flattenWithResolve = {
+      expr = nixliteImport {
+        path = flat;
+        flatten = true;
+        resolve = { tag = "F"; };
+      };
+      # No functions in fixtures-flat, so resolve is a no-op; same result.
+      expected = [ { a = 1; } { b = 2; } { c = 3; } ];
+    };
+    import_flattenListWithResolveAppliesToFnLeaf = {
+      # dir-with-def/default.nix is a function; flatten + resolve applies it.
+      expr = nixliteImport {
+        path = [ (fix + "/dir-with-def") ];
+        flatten = true;
+        resolve = { tag = "F"; };
+      };
+      expected = [
+        { dirFn = { tag = "F"; }; }
+        { must = "be ignored when sibling default.nix exists"; }
+      ];
+    };
+
     # import — error cases
     import_throwsUnknownKey = {
       expr = throws (nixliteImport { path = fix; bogus = 1; });
@@ -184,6 +240,19 @@ let
     };
     import_throwsNullArg = {
       expr = throws (nixliteImport null);
+      expected = true;
+    };
+    import_throwsListPathWithoutFlatten = {
+      expr = throws (nixliteImport { path = [ flat ]; });
+      expected = true;
+    };
+    import_throwsFlattenWithBadPathType = {
+      # path is neither a path nor list of paths
+      expr = throws (nixliteImport { path = "str"; flatten = true; });
+      expected = true;
+    };
+    import_throwsListPathWithNonPathElement = {
+      expr = throws (nixliteImport { path = [ flat "str" ]; flatten = true; });
       expected = true;
     };
   };

@@ -6,7 +6,7 @@ Small personal Nix flake library. Four helpers exposed at the top level of the f
 |-------------|-----------------------------------------|----------------------------------------------------------|
 | `merge`     | `a -> b -> merged`                      | Deep-merge two values (attrsets recurse, lists concat).  |
 | `mergeAll` | `[x] -> merged`                         | Fold `merge` over a list.                                |
-| `import`    | `(Path | { path; resolve? }) -> AttrSet` | Walk a directory into a keyed attrset, optionally applying a resolver to leaf functions. |
+| `import`    | `(Path | { path; resolve?; flatten? }) -> AttrSet | [value]` | Walk a directory (or list of paths) into a keyed attrset — or, with `flatten = true`, a flat list of leaf values. Optional `resolve` is applied to leaf functions. |
 | `eval`      | `{ inputs?; module } -> AttrSet`        | Lightweight NixOS-module-style evaluator — expands an `imports` tree, applies modules with `self` fixpoint, merges with `merge`. |
 
 ## Install
@@ -58,15 +58,15 @@ nixlite.merge: incompatible types at .hosts (list vs set)
 
 ## `import`
 
-Walks a directory into a keyed attrset.
+Walks a directory into a keyed attrset. `default.nix` has no special treatment — it's just another `.nix` file.
 
 ```
 dir/
-├── default.nix       # NOT added as a key (root default.nix is ignored)
+├── default.nix       # → { default = import ./default.nix; }
 ├── foo.nix           # → { foo = import ./foo.nix; }
 ├── bar/
-│   ├── default.nix   # → { bar = import ./bar; }  (dir collapses)
-│   └── other.nix     # ignored (sibling of default.nix)
+│   ├── default.nix   # → { bar = { default = import ./bar/default.nix; ... }; }
+│   └── other.nix     # → { bar = { ... ; other = import ./bar/other.nix; }; }
 └── baz/
     └── qux.nix       # → { baz = { qux = import ./baz/qux.nix; }; }
 ```
@@ -96,6 +96,26 @@ in {
   ];
 }
 ```
+
+### `flatten`
+
+Return the walk as a flat list of leaf values instead of a keyed attrset:
+
+```nix
+# Single path: walk the directory and return values in attrName-sorted order.
+nixlite.import { path = ./modules; flatten = true; }
+# → [ (import m1) (import m2) ... ]
+
+# List of paths: each is walked flat (if dir) or imported (if .nix file);
+# results are concatenated.
+nixlite.import { path = [ ./a.nix ./subtree ]; flatten = true; }
+# → [ (import ./a.nix) ... imports from ./subtree ... ]
+```
+
+Rules:
+- `path` as a list **requires** `flatten = true`; otherwise throws.
+- List elements must be paths (file or directory); non-path elements throw.
+- `resolve` still applies to function leaves.
 
 Unknown keys in the attrset form, missing `path`, or a non-path/non-attrset argument all throw.
 
@@ -140,7 +160,7 @@ Merging uses `nixlite.merge` as-is: no priorities, strict on primitive conflicts
 nix flake check
 ```
 
-72 tests via `lib.runTests`, wired into `checks.x86_64-linux.tests`. Failures are printed as JSON to stderr.
+82 tests via `lib.runTests`, wired into `checks.x86_64-linux.tests`. Failures are printed as JSON to stderr.
 
 ## Layout
 
@@ -156,5 +176,6 @@ nixlite/
     ├── default.nix
     ├── eval.nix
     ├── fixtures/        # deterministic tree used by import tests
+    ├── fixtures-flat/   # clean fixture used by flatten tests
     └── eval-fixtures/   # module fixtures used by eval tests
 ```
