@@ -6,7 +6,7 @@ Small personal Nix flake library. Four helpers exposed at the top level of the f
 |-------------|-----------------------------------------|----------------------------------------------------------|
 | `merge`     | `a -> b -> merged`                      | Deep-merge two values (attrsets recurse, lists concat).  |
 | `mergeAll` | `[x] -> merged`                         | Fold `merge` over a list.                                |
-| `import`    | `(Path | { path; resolve?; flatten? }) -> AttrSet | [value]` | Walk a directory (or list of paths) into a keyed attrset — or, with `flatten = true`, a flat list of leaf values. Optional `resolve` is applied to leaf functions. |
+| `import`    | `(Path \| [Path] \| { path; resolve?; flatten?; expandDir? }) -> AttrSet \| [value]` | Walk a directory into a keyed attrset (collapsing subdirs that contain `default.nix`, like native Nix). `flatten = true` returns a flat list. `expandDir = true` disables the collapse. List-of-paths returns a concatenated list. |
 | `eval`      | `{ inputs?; module } -> AttrSet`        | Lightweight NixOS-module-style evaluator — expands an `imports` tree, applies modules with `self` fixpoint, merges with `merge`. |
 
 ## Install
@@ -58,20 +58,19 @@ nixlite.merge: incompatible types at .hosts (list vs set)
 
 ## `import`
 
-Walks a directory into a keyed attrset. `default.nix` has no special treatment — it's just another `.nix` file.
+Walks a directory into a keyed attrset. Matches `builtins.import`'s native behavior: a directory containing `default.nix` collapses to that import (siblings of `default.nix` are not walked).
 
 ```
 dir/
-├── default.nix       # → { default = import ./default.nix; }
 ├── foo.nix           # → { foo = import ./foo.nix; }
 ├── bar/
-│   ├── default.nix   # → { bar = { default = import ./bar/default.nix; ... }; }
-│   └── other.nix     # → { bar = { ... ; other = import ./bar/other.nix; }; }
+│   ├── default.nix   # → { bar = import ./bar; }  (dir collapses)
+│   └── other.nix     # ignored (sibling of default.nix)
 └── baz/
     └── qux.nix       # → { baz = { qux = import ./baz/qux.nix; }; }
 ```
 
-Called two ways:
+Called three ways:
 
 ```nix
 # 1. Path form — walk only, leaves kept as-is (functions stay functions).
@@ -79,6 +78,9 @@ nixlite.import ./modules
 
 # 2. Attrset form — walk + apply `resolve` to any leaf that is a function.
 nixlite.import { path = ./modules; resolve = { inherit flake; }; }
+
+# 3. List-of-paths form — each path walked; results concatenated into a list.
+nixlite.import [ ./modules ./extras ./one-file.nix ]
 ```
 
 Resolve is applied **once** per leaf. Non-function leaves pass through untouched.
@@ -99,25 +101,35 @@ in {
 
 ### `flatten`
 
-Return the walk as a flat list of leaf values instead of a keyed attrset:
+Return a flat list of leaf values instead of a keyed attrset:
 
 ```nix
-# Single path: walk the directory and return values in attrName-sorted order.
 nixlite.import { path = ./modules; flatten = true; }
-# → [ (import m1) (import m2) ... ]
-
-# List of paths: each is walked flat (if dir) or imported (if .nix file);
-# results are concatenated.
-nixlite.import { path = [ ./a.nix ./subtree ]; flatten = true; }
-# → [ (import ./a.nix) ... imports from ./subtree ... ]
+# → [ leaf1 leaf2 ... ]  (attrName-sorted within each level)
 ```
 
-Rules:
-- `path` as a list **requires** `flatten = true`; otherwise throws.
-- List elements must be paths (file or directory); non-path elements throw.
-- `resolve` still applies to function leaves.
+A directory that collapses (contains `default.nix`) contributes a single element — its `import`ed value.
 
-Unknown keys in the attrset form, missing `path`, or a non-path/non-attrset argument all throw.
+The list-of-paths form always returns a list (flatten is implicit for lists):
+
+```nix
+nixlite.import [ ./a.nix ./subtree ]
+# → [ (import ./a.nix) ... items from ./subtree ... ]
+```
+
+### `expandDir`
+
+Opt out of the `default.nix` collapse — every `.nix` file (including `default.nix`) becomes a key, and every subdirectory is walked:
+
+```nix
+nixlite.import { path = ./dir; expandDir = true; }
+# A subdir bar/ with default.nix and other.nix becomes:
+#   bar = { default = import ./dir/bar/default.nix; other = import ./dir/bar/other.nix; };
+```
+
+Works with `flatten` too — with both on, `default.nix` and every sibling contribute their own leaf.
+
+Unknown keys in the attrset form, missing `path`, non-path/list/attrset arguments, or list elements that aren't paths all throw.
 
 ## `eval`
 
@@ -160,7 +172,7 @@ Merging uses `nixlite.merge` as-is: no priorities, strict on primitive conflicts
 nix flake check
 ```
 
-82 tests via `lib.runTests`, wired into `checks.x86_64-linux.tests`. Failures are printed as JSON to stderr.
+88 tests via `lib.runTests`, wired into `checks.x86_64-linux.tests`. Failures are printed as JSON to stderr.
 
 ## Layout
 
